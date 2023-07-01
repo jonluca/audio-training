@@ -19,11 +19,17 @@ describe("Diarizes audio", async () => {
     await expect(() => diarizer.diarizeAudio()).rejects.toThrow();
   });
 
-  test(`it diarizes audio`, async ({ expect }) => {
+  test(`it diarizes audio`, async (opts) => {
+    const { expect } = opts;
+    const apiKey = String(process.env.DEEPGRAM_API_KEY || "");
+    if (!apiKey) {
+      console.warn("Deepgram API key not found");
+      return;
+    }
     const diarizer = new Diarization({
       language: "en-US",
       input: resolve(join(__dirname, "audio/audio.aac")),
-      apiKey: String(process.env.DEEPGRAM_API_KEY || ""),
+      apiKey,
       _: [],
       $0: "",
     });
