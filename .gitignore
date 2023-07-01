@@ -196,3 +196,4 @@ node_modules
 coverage
 test/audio/*.json
 dbg
+test/**/*-speakers
