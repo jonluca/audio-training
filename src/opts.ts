@@ -3,8 +3,8 @@ import { hideBin } from "yargs/helpers";
 
 export const opts = yargs(hideBin(process.argv))
   .options({
-    file: { type: "string", alias: "f", demandOption: true },
-    apiKey: { type: "string", alias: "a", demandOption: true, default: process.env.DEEPGRAM_API_KEY || "" },
+    input: { type: "string", alias: "f", demandOption: true, description: "Input file or directory" },
+    apiKey: { type: "string", alias: "a", default: process.env.DEEPGRAM_API_KEY || "" },
   })
   .choices("language", [
     "zh",

@@ -194,5 +194,5 @@ dist
 node_modules
 .idea
 coverage
-test/audio/*-clean.pdf
+test/audio/*.json
 dbg

@@ -1,11 +1,13 @@
 import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
+import * as fsp from "fs/promises";
 import { Deepgram } from "@deepgram/sdk";
 import * as process from "process";
 import mime from "mime-types";
 import { glob } from "glob";
 import type { AudioOpts } from "./opts.js";
+import * as path from "path";
 
 export class Diarization {
   opts: AudioOpts;
@@ -26,7 +28,7 @@ export class Diarization {
     }
   }
   diarizeAudio = async () => {
-    const inputDirectoryOrFile = this.opts.file;
+    const inputDirectoryOrFile = this.opts.input;
     const isDirectory = fs.lstatSync(inputDirectoryOrFile).isDirectory();
     const files = isDirectory ? await glob(inputDirectoryOrFile) : [inputDirectoryOrFile];
     await Promise.all(files.map((file) => this.diarizeFile(file)));
@@ -49,5 +51,19 @@ export class Diarization {
       diarize: true,
       utterances: true,
     });
+    const srt = response.toSRT();
+    const vtt = response.toWebVTT();
+    const output = {
+      srt,
+      vtt,
+      err_code: response.err_code,
+      err_msg: response.err_msg,
+      request_id: response.request_id,
+      metadata: response.metadata,
+      results: response.results,
+    };
+    const file = path.parse(inputFile);
+    const outputFile = path.join(file.dir, `${file.name}.json`);
+    await fsp.writeFile(outputFile, JSON.stringify(output, null, 2));
   };
 }
