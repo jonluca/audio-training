@@ -197,3 +197,5 @@ coverage
 test/audio/*.json
 dbg
 test/**/*-speakers
+
+Seinfeld
