@@ -195,6 +195,8 @@ node_modules
 .idea
 coverage
 test/audio/*.json
+test/video/*.aac
+test/video/*.json
 dbg
 test/**/*-speakers
 

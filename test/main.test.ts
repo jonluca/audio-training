@@ -36,4 +36,22 @@ describe("Diarizes audio", async () => {
     await diarizer.diarizeAudio();
     expect(true).toBe(true);
   });
+
+  test(`it extracts audio from video and diarizes it`, async (opts) => {
+    const { expect } = opts;
+    const apiKey = String(process.env.DEEPGRAM_API_KEY || "");
+    if (!apiKey) {
+      console.warn("Deepgram API key not found");
+      return;
+    }
+    const diarizer = new Diarization({
+      language: "en-US",
+      input: resolve(join(__dirname, "video")),
+      apiKey,
+      _: [],
+      $0: "",
+    });
+    await diarizer.diarizeAudio();
+    expect(true).toBe(true);
+  });
 });

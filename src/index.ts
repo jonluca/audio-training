@@ -1,4 +1,5 @@
 import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
+import { path as ffprobePath } from "@ffprobe-installer/ffprobe";
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
@@ -9,10 +10,12 @@ import { glob } from "glob";
 import type { AudioOpts } from "./opts.js";
 import * as path from "path";
 import type { PrerecordedTranscriptionResponse } from "@deepgram/sdk/dist/types/index.js";
+import pMap from "p-map";
 
 export class Diarization {
   opts: AudioOpts;
   deepgram: Deepgram;
+  EXTRACTED_AUDIO_SUFFIX = "_diarization_extracted_audio";
   constructor(opts: AudioOpts) {
     this.opts = opts;
 
@@ -24,6 +27,7 @@ export class Diarization {
 
     try {
       ffmpeg.setFfmpegPath(ffmpegPath);
+      ffmpeg.setFfprobePath(ffprobePath);
     } catch (err) {
       throw new Error("ffmpeg not found");
     }
@@ -31,8 +35,23 @@ export class Diarization {
   diarizeAudio = async () => {
     const inputDirectoryOrFile = this.opts.input;
     const isDirectory = fs.lstatSync(inputDirectoryOrFile).isDirectory();
-    const files = isDirectory ? await glob(inputDirectoryOrFile) : [inputDirectoryOrFile];
-    await Promise.all(files.map((file) => this.diarizeFile(file)));
+    const files = isDirectory ? await glob(`${inputDirectoryOrFile}/**`, { nodir: true }) : [inputDirectoryOrFile];
+    const filteredFiles = files.filter((file) => {
+      return !file.includes(`${this.EXTRACTED_AUDIO_SUFFIX}.`) && !file.includes(`-speakers/`);
+    });
+    await pMap(
+      filteredFiles,
+      async (file) => {
+        try {
+          await this.diarizeFile(file);
+        } catch (e) {
+          console.error(`Error processing file ${file}: ${e}`);
+        }
+      },
+      {
+        concurrency: 8,
+      },
+    );
   };
 
   private processTranscriptionResponse = (response: PrerecordedTranscriptionResponse) => {
@@ -50,21 +69,71 @@ export class Diarization {
     return output;
   };
 
-  diarizeFile = async (inputFile: string) => {
-    const mimeType = mime.lookup(inputFile);
+  private convertVideoFileToAudio = async (file: string) => {
+    // extract audio from video
+    const audioInfo = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
+      ffmpeg.ffprobe(file, (err, info) => {
+        if (err) {
+          reject(err);
+        }
+        resolve(info);
+      });
+    });
+    const audioStream = audioInfo.streams.filter((stream) => stream.codec_type === "audio");
+    if (!audioStream.length) {
+      throw new Error("No audio stream found");
+    }
+    const isMultiStream = audioStream.length > 1;
+    if (isMultiStream) {
+      console.warn("Multiple audio streams found, reencoding all into single stream");
+    }
+    const parsedFile = path.parse(file);
+    const extension = isMultiStream ? "aac" : audioStream[0].codec_name;
+    const outputFileName = `${parsedFile.dir}/${parsedFile.name}${this.EXTRACTED_AUDIO_SUFFIX}.${extension}`;
+    await new Promise<void>((resolve) => {
+      const command = ffmpeg();
+      command
+        .input(file)
+        .output(outputFileName)
+        .noVideo()
+        .audioCodec(isMultiStream ? "aac" : "copy")
+        .on("end", resolve)
+        .on("error", (err) => {
+          console.error(err);
+          resolve();
+        })
+        .run();
+    });
+    return outputFileName;
+  };
+
+  diarizeFile = async (file: string) => {
+    let mimeType = mime.lookup(file);
     if (!mimeType) {
-      console.error("Mime type not found for file: ", inputFile);
+      console.error("Mime type not found for file: ", file);
       return;
     }
 
-    const file = path.parse(inputFile);
-    const destinationFilename = `${file.name}.json`;
-    const outputFile = path.join(file.dir, destinationFilename);
+    let inputFile = file;
+
+    if (mimeType.startsWith("video")) {
+      inputFile = await this.convertVideoFileToAudio(file);
+      mimeType = mime.lookup(inputFile);
+      if (!mimeType) {
+        console.error("Mime type not found for file: ", file);
+        return;
+      }
+    }
+
+    const parsedFile = path.parse(inputFile);
+    const destinationFilename = `${parsedFile.name}.json`;
+    const outputFile = path.join(parsedFile.dir, destinationFilename);
     // dont reprocess if file exists
     if (fs.existsSync(outputFile)) {
       const contents = await fsp.readFile(outputFile, { encoding: "utf-8" });
       const output = JSON.parse(contents);
       await this.splitAudioBySpeakers(inputFile, output);
+      return;
     }
     // Sending a ReadStream
     const audioSource = {
@@ -76,6 +145,7 @@ export class Diarization {
       language: this.opts.language,
       diarize: true,
       utterances: true,
+      smart_format: true,
     });
     const output = this.processTranscriptionResponse(response);
 
@@ -105,14 +175,15 @@ export class Diarization {
       const start = utterance.start;
       const end = utterance.end;
       const filename = `${start}-${end}`;
-      const target = path.join(speakersDir, String(speaker), `${filename}.${file.ext}`);
+      const target = path.join(speakersDir, String(speaker), `${filename}${file.ext}`);
       await new Promise<void>((resolve) => {
         const command = ffmpeg();
         command
-          .input(this.opts.input)
+          .input(inputFile)
+          .output(target)
           .setStartTime(start)
           .setDuration(end - start)
-          .output(target)
+          .audioCodec("copy")
           .on("end", resolve)
           .on("error", (err) => {
             console.error(err);

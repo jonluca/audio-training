@@ -41,6 +41,7 @@
   "dependencies": {
     "@deepgram/sdk": "^2.2.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.0",
     "@types/fluent-ffmpeg": "^2.1.21",
     "@types/mime-types": "^2.1.1",
     "@types/uuid": "^9.0.2",
@@ -53,6 +54,7 @@
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "mime-types": "^2.1.35",
+    "p-map": "^6.0.0",
     "uuid": "^9.0.0",
     "yargs": "^17.7.2"
   },

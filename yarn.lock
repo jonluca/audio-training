@@ -226,6 +226,60 @@
   resolved "https://registry.npmjs.org/@ffmpeg-installer/win32-x64/-/win32-x64-4.1.0.tgz#17e8699b5798d4c60e36e2d6326a8ebe5e95a2c5"
   integrity sha512-Drt5u2vzDnIONf4ZEkKtFlbvwj6rI3kxw1Ck9fpudmtgaZIHD4ucsWB2lCZBXRxJgXR+2IMSti+4rtM4C4rXgg==
 
+"@ffprobe-installer/darwin-arm64@5.0.1":
+  version "5.0.1"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/darwin-arm64/-/darwin-arm64-5.0.1.tgz#a020a623955d55aa8daf45cb668c3044876b553b"
+  integrity sha512-vwNCNjokH8hfkbl6m95zICHwkSzhEvDC3GVBcUp5HX8+4wsX10SP3B+bGur7XUzTIZ4cQpgJmEIAx6TUwRepMg==
+
+"@ffprobe-installer/darwin-x64@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/darwin-x64/-/darwin-x64-5.1.0.tgz#f52316ac0bbe6f4ac70fdaea8db259ba4a055b00"
+  integrity sha512-J+YGscZMpQclFg31O4cfVRGmDpkVsQ2fZujoUdMAAYcP0NtqpC49Hs3SWJpBdsGB4VeqOt5TTm1vSZQzs1NkhA==
+
+"@ffprobe-installer/ffprobe@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/ffprobe/-/ffprobe-2.1.0.tgz#a47ebcac636c519bf55048ea916c02539b8018cb"
+  integrity sha512-zTXx29Sydk9lKFDhnKoWbkYnyXwr/yg1IuoLopmoEnNjl7hdL/47Ym67Os5SWQ6n4NlfcmccG4l/jEsWkeE6XA==
+  optionalDependencies:
+    "@ffprobe-installer/darwin-arm64" "5.0.1"
+    "@ffprobe-installer/darwin-x64" "5.1.0"
+    "@ffprobe-installer/linux-arm" "5.1.0"
+    "@ffprobe-installer/linux-arm64" "5.1.0"
+    "@ffprobe-installer/linux-ia32" "5.1.0"
+    "@ffprobe-installer/linux-x64" "5.1.0"
+    "@ffprobe-installer/win32-ia32" "5.1.0"
+    "@ffprobe-installer/win32-x64" "5.1.0"
+
+"@ffprobe-installer/linux-arm64@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/linux-arm64/-/linux-arm64-5.1.0.tgz#0120872eab1ba8e48cce1cc71e396e707aa0cba2"
+  integrity sha512-u5b3r3/39eZmEV0X4OKUfp6gO3lOyVIpRO4WU+5Eb6omWYy+k0OkVbRffK4qJF1Uz8irwzyiDsmUZ6vE13/abQ==
+
+"@ffprobe-installer/linux-arm@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/linux-arm/-/linux-arm-5.1.0.tgz#5cf3e5015309671b40101fb0669877822c4e333e"
+  integrity sha512-y34AEive/M5/++RcuRJZciICYYRkmTh5gK6th7raydgfQhIYy/8AXAIGKqD5Hn855i6o/RpEIPjk7DWpEuwrdA==
+
+"@ffprobe-installer/linux-ia32@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/linux-ia32/-/linux-ia32-5.1.0.tgz#c0d06827d11747e5392206c19389313e1fcaad99"
+  integrity sha512-Uqk4sYYQxz0KQmEQ2xxbVu/KiDX7Pw6wRDpCYv0sW49GI3wpX2Umqi/Kmtr0tpCvxctVoCdf/U71EAxH2Lztdg==
+
+"@ffprobe-installer/linux-x64@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/linux-x64/-/linux-x64-5.1.0.tgz#ef575d1e55ea3ed26646d5be5b071235a56f6de6"
+  integrity sha512-r7cGOjNb8AMnKAEvz5f8N/WsWsre02LhAfDKZX0m5J0bsrYgs2HUlnnQiwjRCH9CYXYerjYqq592o/GXvxDS+Q==
+
+"@ffprobe-installer/win32-ia32@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/win32-ia32/-/win32-ia32-5.1.0.tgz#43b1462b9d89570fe3723c20b66bab684516751a"
+  integrity sha512-5O3vOoNRxmut0/Nu9vSazTdSHasrr+zPT2B3Hm7kjmO3QVFcIfVImS6ReQnZeSy8JPJOqXts5kX5x/3KOX54XQ==
+
+"@ffprobe-installer/win32-x64@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/@ffprobe-installer/win32-x64/-/win32-x64-5.1.0.tgz#87841123e8b903cc327f1e5b9aa69e5d2fbe6d7b"
+  integrity sha512-jMGYeAgkrdn4e2vvYt/qakgHRE3CPju4bn5TmdPfoAm1BlX1mY9cyMd8gf5vSzI8gH8Zq5WQAyAkmekX/8TSTg==
+
 "@humanwhocodes/config-array@^0.11.10":
   version "0.11.10"
   resolved "https://registry.npmjs.org/@humanwhocodes/config-array/-/config-array-0.11.10.tgz#5a3ffe32cc9306365fb3fd572596cd602d5e12d2"
@@ -2167,6 +2221,11 @@ p-map@^4.0.0:
   integrity sha512-/bjOqmgETBYB5BoEeGVea8dmvHb2m9GLy1E9W43yeyfP6QQCZGFNa+XRceJEuDB6zqr+gKpIAmlLebMpykw/MQ==
   dependencies:
     aggregate-error "^3.0.0"
+
+p-map@^6.0.0:
+  version "6.0.0"
+  resolved "https://registry.npmjs.org/p-map/-/p-map-6.0.0.tgz#4d9c40d3171632f86c47601b709f4b4acd70fed4"
+  integrity sha512-T8BatKGY+k5rU+Q/GTYgrEf2r4xRMevAN5mtXc2aPc4rS1j3s+vWTaO2Wag94neXuCAUAs8cxBL9EeB5EA6diw==
 
 parent-module@^1.0.0:
   version "1.0.1"
