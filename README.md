@@ -6,6 +6,12 @@ Some tools to work with movie and audio files. This allows you to use either Ass
 
 ```bash
 npx audio-training --help
+Options:
+--help     Show help                                             [boolean]
+--version  Show version number                                   [boolean]
+-f, --input    Input file or directory                     [string] [required]
+-a, --apiKey                                            [string] [default: ""]
+--client       [choices: "deepgram", "assemblyai"] [default: "assemblyai"]
 ```
 
 ## Example
