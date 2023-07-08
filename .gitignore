@@ -199,5 +199,6 @@ test/video/*.aac
 test/video/*.json
 dbg
 test/**/*-speakers
+test/**/*-diarization
 
 Seinfeld

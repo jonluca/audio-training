@@ -11,10 +11,11 @@ import pMap from "p-map";
 import type { AudioProcessor, DiarizedAudio } from "./clients/base.js";
 import DeepgramTranscriber from "./clients/deepgram.js";
 import AssemblyAITranscriber from "./clients/assemblyai.js";
-
+import logger from "./logger.js";
+import fsJetpack from "fs-jetpack";
 export class Diarization {
   opts: AudioOpts;
-  EXTRACTED_AUDIO_SUFFIX = "_diarization_extracted_audio";
+  EXTRACTED_AUDIO_SUFFIX = "-diarization";
   transcriber: AudioProcessor;
   constructor(opts: AudioOpts) {
     this.opts = opts;
@@ -37,11 +38,12 @@ export class Diarization {
     }
   }
   diarizeAudio = async () => {
+    logger.info(`Beginning audio diariazation`);
     const inputDirectoryOrFile = this.opts.input;
     const isDirectory = fs.lstatSync(inputDirectoryOrFile).isDirectory();
     const files = isDirectory ? await glob(`${inputDirectoryOrFile}/**`, { nodir: true }) : [inputDirectoryOrFile];
     const filteredFiles = files.filter((file) => {
-      return !file.includes(`${this.EXTRACTED_AUDIO_SUFFIX}.`) && !file.includes(`-speakers/`);
+      return !file.includes(`${this.EXTRACTED_AUDIO_SUFFIX}`) && !file.includes(`speakers/`);
     });
     await pMap(
       filteredFiles,
@@ -49,7 +51,7 @@ export class Diarization {
         try {
           await this.diarizeFile(file);
         } catch (e) {
-          console.error(`Error processing file ${file}: ${e}`);
+          logger.error(`Error processing file ${file}: ${e}`);
         }
       },
       {
@@ -58,7 +60,10 @@ export class Diarization {
     );
   };
 
-  private convertVideoFileToAudio = async (file: string) => {
+  private convertVideoFileToAudio = async (file: string, workingDirectory: string) => {
+    if (this.opts.verbose) {
+      logger.info(`Converting video file to audio: ${file}`);
+    }
     // extract audio from video
     const audioInfo = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
       ffmpeg.ffprobe(file, (err, info) => {
@@ -74,11 +79,11 @@ export class Diarization {
     }
     const isMultiStream = audioStream.length > 1;
     if (isMultiStream) {
-      console.warn("Multiple audio streams found, reencoding all into single stream");
+      logger.warn("Multiple audio streams found, reencoding all into single stream");
     }
     const parsedFile = path.parse(file);
     const extension = isMultiStream ? "aac" : audioStream[0].codec_name;
-    const outputFileName = `${parsedFile.dir}/${parsedFile.name}${this.EXTRACTED_AUDIO_SUFFIX}.${extension}`;
+    const outputFileName = path.join(workingDirectory, `${parsedFile.name}${this.EXTRACTED_AUDIO_SUFFIX}.${extension}`);
     await new Promise<void>((resolve) => {
       const command = ffmpeg();
       command
@@ -88,58 +93,123 @@ export class Diarization {
         .audioCodec(isMultiStream ? "aac" : "copy")
         .on("end", resolve)
         .on("error", (err) => {
-          console.error(err);
+          logger.error(err);
           resolve();
         })
         .run();
     });
+    if (this.opts.verbose) {
+      logger.info(`Extracted audio file: ${outputFileName}`);
+    }
     return outputFileName;
   };
 
   diarizeFile = async (file: string) => {
+    // check if file exists
+    if (!fs.existsSync(file)) {
+      logger.error("File does not exist, did you pass --input correctly?", file);
+      return;
+    }
     let mimeType = mime.lookup(file);
     if (!mimeType) {
-      console.error("Mime type not found for file: ", file);
+      logger.error("Mime type not found for file: ", file);
       return;
     }
 
     let inputFile = file;
+    const parsedFile = path.parse(inputFile);
+    const workingDirectory = path.join(parsedFile.dir, `${parsedFile.name}-diarization`);
+    await fsp.mkdir(workingDirectory, { recursive: true });
 
     if (mimeType.startsWith("video")) {
-      inputFile = await this.convertVideoFileToAudio(file);
+      inputFile = await this.convertVideoFileToAudio(file, workingDirectory);
       mimeType = mime.lookup(inputFile);
       if (!mimeType) {
-        console.error("Mime type not found for file: ", file);
+        logger.error("Mime type not found for file: ", file);
         return;
       }
     }
 
-    const parsedFile = path.parse(inputFile);
+    if (!mimeType.startsWith("audio")) {
+      logger.warn("Mime type not audio for file: ", inputFile);
+      return;
+    }
+
     const destinationFilename = `${parsedFile.name}-${this.opts.client}.json`;
-    const outputFile = path.join(parsedFile.dir, destinationFilename);
+    const outputFile = path.join(workingDirectory, destinationFilename);
     // dont reprocess if file exists
+    const verbose = this.opts.verbose;
     if (fs.existsSync(outputFile)) {
+      if (verbose) {
+        logger.info(`File already processed, skipping API re-diarization: ${file}`);
+      }
       const contents = await fsp.readFile(outputFile, { encoding: "utf-8" });
       const output = JSON.parse(contents);
-      await this.splitAudioBySpeakers(inputFile, output);
+      await this.splitAudioBySpeakers(inputFile, workingDirectory, output);
       return;
     }
 
     try {
+      if (verbose) {
+        logger.info(`Diarizing file: ${file}`);
+      }
       const output = await this.transcriber.processAudio(inputFile);
-
+      if (verbose) {
+        logger.info(`Diarization complete: ${file}`);
+      }
       await fsp.writeFile(outputFile, JSON.stringify(output, null, 2));
-      await this.splitAudioBySpeakers(inputFile, output);
+      await this.splitAudioBySpeakers(inputFile, workingDirectory, output);
     } catch (e) {
-      console.error(`Error processing file ${file}: ${e}`);
+      logger.error(`Error processing file ${file}: ${e}`);
     }
   };
 
-  splitAudioBySpeakers = async (inputFile: string, response: DiarizedAudio) => {
+  mergeAudioFiles = async (speakersDir: string) => {
+    if (this.opts.verbose) {
+      logger.info(`Merging audio files for ${speakersDir}`);
+    }
+    // read all top level directories in dir
+    const speakers = await fsp.readdir(speakersDir);
+    const tmpDir = fsJetpack.tmpDir();
+    for (const speaker of speakers) {
+      try {
+        // read all files in dir
+        const fullSpeakerDir = path.join(speakersDir, speaker);
+        const files = await fsp.readdir(fullSpeakerDir);
+        // now merge each file, that we know is audio, into one large audio file called merge using ffmpeg
+
+        const command = ffmpeg();
+        for (const f of files) {
+          command.input(path.join(speakersDir, speaker, f));
+        }
+        const extension = path.parse(files[0]).ext;
+        const mergeFile = path.join(speakersDir, speaker, `${speaker}-merged${extension}`);
+        await new Promise<void>((resolve) => {
+          command
+            .on("end", resolve)
+            .on("error", (err) => {
+              logger.error(err);
+              resolve();
+            })
+            .mergeToFile(mergeFile, tmpDir.path());
+        });
+      } catch (e) {
+        logger.error(`Error merging files for speaker ${speaker}: ${e}`);
+      }
+    }
+    tmpDir.remove();
+    if (this.opts.verbose) {
+      logger.info(`Finished merging audio files for ${speakersDir}`);
+    }
+  };
+  splitAudioBySpeakers = async (inputFile: string, workingDirectory: string, response: DiarizedAudio) => {
+    if (this.opts.verbose) {
+      logger.info(`Splitting audio by speakers: ${inputFile}`);
+    }
     const utterances = response?.utterances || [];
     const file = path.parse(inputFile);
     // create dir for speakers
-    const speakersDir = path.join(file.dir, `${file.name}-speakers`);
+    const speakersDir = path.join(workingDirectory, `${this.opts.client}-speakers`);
     await fsp.mkdir(speakersDir, { recursive: true });
     // create each individual speaker dir
     const allSpeakers = [
@@ -165,11 +235,19 @@ export class Diarization {
           .audioCodec("copy")
           .on("end", resolve)
           .on("error", (err) => {
-            console.error(err);
+            logger.error(err);
             resolve();
           })
           .run();
       });
+    }
+
+    if (this.opts.verbose) {
+      logger.info(`Splitting audio by speakers complete: ${inputFile}`);
+    }
+
+    if (this.opts.mergeAudio) {
+      await this.mergeAudioFiles(speakersDir);
     }
   };
 }

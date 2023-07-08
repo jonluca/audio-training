@@ -16,7 +16,7 @@ class DeepgramTranscriber implements AudioProcessor {
   constructor(opts: AudioOpts) {
     this.opts = opts;
 
-    const key = opts.apiKey || process.env.DEEPGRAM_API_KEY;
+    const key = process.env.DEEPGRAM_API_KEY || opts.apiKey;
     if (!key) {
       throw new Error("Deepgram API key not found");
     }

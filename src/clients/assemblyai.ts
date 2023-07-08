@@ -4,6 +4,7 @@ import type { AudioOpts } from "../opts.js";
 import axios from "axios";
 import fs from "fs/promises";
 import type { DiarizedAudio } from "./base.js";
+import logger from "../logger.js";
 
 export interface AssemblyAiResponse {
   id: string;
@@ -93,7 +94,7 @@ class AssemblyAITranscriber implements AudioProcessor {
   constructor(opts: AudioOpts) {
     this.opts = opts;
 
-    const key = opts.apiKey || process.env.ASSEMBLYAI_API_KEY;
+    const key = process.env.ASSEMBLYAI_API_KEY || opts.apiKey;
     if (!key) {
       throw new Error("AssemblyAI API key not found");
     }
@@ -115,11 +116,11 @@ class AssemblyAITranscriber implements AudioProcessor {
       if (response.status === 200) {
         return response.data["upload_url"];
       } else {
-        console.error(`Error: ${response.status} - ${response.statusText}`);
+        logger.error(`Error: ${response.status} - ${response.statusText}`);
         return null;
       }
     } catch (error) {
-      console.error(`Error: ${error}`);
+      logger.error(`Error: ${error}`);
       return null;
     }
   };
