@@ -1,7 +1,8 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-export const opts = yargs(hideBin(process.argv))
+const instance = yargs(hideBin(process.argv));
+export const opts = instance
   .options({
     input: { type: "string", alias: "f", demandOption: true, default: "", description: "Input file or directory" },
     verbose: { type: "string", alias: "v", default: false, description: "Verbose logging" },
@@ -17,6 +18,7 @@ export const opts = yargs(hideBin(process.argv))
       default: process.env.DEEPGRAM_API_KEY || process.env.ASSEMBLYAI_API_KEY || "",
     },
   })
+  .alias("language", "l")
   .default("language", "en-US")
   .choices("language", [
     "zh",
@@ -55,6 +57,7 @@ export const opts = yargs(hideBin(process.argv))
   ] as const)
   .default("client", "assemblyai")
   .choices("client", ["deepgram", "assemblyai"] as const)
+  .wrap(120)
   .parseSync();
 export type AudioCliOpts = typeof opts;
 
