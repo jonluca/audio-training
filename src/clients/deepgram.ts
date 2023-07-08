@@ -1,14 +1,16 @@
 import type { AudioProcessor, DiarizedAudio } from "./base.js";
 import process from "process";
-import { Deepgram } from "@deepgram/sdk";
+import * as dg from "@deepgram/sdk";
 import type { AudioOpts } from "../opts.js";
 import fs from "fs";
 import mime from "mime-types";
 import type { Utterance } from "./base.js";
+const { Deepgram } = dg;
+import type { Deepgram as DeepgramClient } from "@deepgram/sdk";
 
 class DeepgramTranscriber implements AudioProcessor {
   static id: "deepgram";
-  deepgram: Deepgram;
+  deepgram: DeepgramClient;
   opts: AudioOpts;
 
   constructor(opts: AudioOpts) {
