@@ -13,6 +13,7 @@ describe("Diarizes audio", async () => {
       language: "en-US",
       input: resolve(join(__dirname, "audio/nonexistant.aac")),
       apiKey: "test",
+      client: "assemblyai",
       _: [],
       $0: "",
     });
@@ -32,6 +33,7 @@ describe("Diarizes audio", async () => {
       apiKey,
       _: [],
       $0: "",
+      client: "deepgram",
     });
     await diarizer.diarizeAudio();
     expect(true).toBe(true);
@@ -50,6 +52,26 @@ describe("Diarizes audio", async () => {
       apiKey,
       _: [],
       $0: "",
+      client: "deepgram",
+    });
+    await diarizer.diarizeAudio();
+    expect(true).toBe(true);
+  });
+
+  test(`it extracts audio from video and diarizes it - assemblyai`, async (opts) => {
+    const { expect } = opts;
+    const apiKey = String(process.env.ASSEMBLYAI_API_KEY || "");
+    if (!apiKey) {
+      console.warn("Deepgram API key not found");
+      return;
+    }
+    const diarizer = new Diarization({
+      language: "en-US",
+      input: resolve(join(__dirname, "video")),
+      apiKey,
+      _: [],
+      $0: "",
+      client: "assemblyai",
     });
     await diarizer.diarizeAudio();
     expect(true).toBe(true);

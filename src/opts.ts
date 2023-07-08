@@ -4,6 +4,7 @@ import { hideBin } from "yargs/helpers";
 export const opts = yargs(hideBin(process.argv))
   .options({
     input: { type: "string", alias: "f", demandOption: true, description: "Input file or directory" },
+
     apiKey: { type: "string", alias: "a", default: process.env.DEEPGRAM_API_KEY || "" },
   })
   .choices("language", [
@@ -41,6 +42,8 @@ export const opts = yargs(hideBin(process.argv))
     "tr",
     "uk",
   ] as const)
+  .default("client", "assemblyai")
+  .choices("client", ["deepgram", "assemblyai"] as const)
   .parseSync();
 export type AudioCliOpts = typeof opts;
 export type AudioOpts = Exclude<AudioCliOpts, "$0">;
