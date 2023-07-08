@@ -45,11 +45,11 @@ export class Diarization {
     const filteredFiles = files.filter((file) => {
       return !file.includes(`${this.EXTRACTED_AUDIO_SUFFIX}`) && !file.includes(`speakers/`);
     });
-    await pMap(
+    const results = await pMap(
       filteredFiles,
       async (file) => {
         try {
-          await this.diarizeFile(file);
+          return await this.diarizeFile(file);
         } catch (e) {
           logger.error(`Error processing file ${file}: ${e}`);
         }
@@ -58,6 +58,8 @@ export class Diarization {
         concurrency: 8,
       },
     );
+
+    return results.filter(Boolean) as string[];
   };
 
   private convertVideoFileToAudio = async (file: string, workingDirectory: string) => {
@@ -162,6 +164,7 @@ export class Diarization {
     } catch (e) {
       logger.error(`Error processing file ${file}: ${e}`);
     }
+    return workingDirectory;
   };
 
   mergeAudioFiles = async (speakersDir: string) => {
