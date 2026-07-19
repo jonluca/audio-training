@@ -6,6 +6,13 @@ import fs from "fs/promises";
 import type { DiarizedAudio } from "./base.js";
 import logger from "../logger.js";
 
+export const toAssemblyAiLanguageCode = (language: AudioOpts["language"] = "en-US"): string => {
+  if (language === "en-GB") {
+    return "en_uk";
+  }
+  return language.toLowerCase().replace("-", "_");
+};
+
 export interface AssemblyAiResponse {
   id: string;
   language_model: string;
@@ -168,7 +175,7 @@ class AssemblyAITranscriber implements AudioProcessor {
         disfluencies: true,
         punctuate: true,
         format_text: true,
-        // language_code: this.opts.language, // todo fix this so that languages map to assemblyai language codes
+        language_code: toAssemblyAiLanguageCode(this.opts.language),
       },
       { headers },
     );

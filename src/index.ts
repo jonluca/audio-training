@@ -13,6 +13,7 @@ import DeepgramTranscriber from "./clients/deepgram.js";
 import AssemblyAITranscriber from "./clients/assemblyai.js";
 import logger from "./logger.js";
 import fsJetpack from "fs-jetpack";
+import { createHash } from "crypto";
 export class Diarization {
   opts: AudioOpts;
   EXTRACTED_AUDIO_SUFFIX = "-diarization";
@@ -42,8 +43,14 @@ export class Diarization {
     const inputDirectoryOrFile = this.opts.input;
     const isDirectory = fs.lstatSync(inputDirectoryOrFile).isDirectory();
     const files = isDirectory ? await glob(`${inputDirectoryOrFile}/**`, { nodir: true }) : [inputDirectoryOrFile];
+    const generatedSpeakerDirectories = new Set(["assemblyai-speakers", "deepgram-speakers"]);
     const filteredFiles = files.filter((file) => {
-      return !file.includes(`${this.EXTRACTED_AUDIO_SUFFIX}`) && !file.includes(`speakers/`);
+      const isExtractedAudio = path.parse(file).name.endsWith(this.EXTRACTED_AUDIO_SUFFIX);
+      const isGeneratedSpeakerAudio = path
+        .normalize(file)
+        .split(path.sep)
+        .some((segment) => generatedSpeakerDirectories.has(segment));
+      return !isExtractedAudio && !isGeneratedSpeakerAudio;
     });
     const results = await pMap(
       filteredFiles,
@@ -84,20 +91,31 @@ export class Diarization {
       logger.warn("Multiple audio streams found, reencoding all into single stream");
     }
     const parsedFile = path.parse(file);
-    const extension = isMultiStream ? "aac" : audioStream[0].codec_name;
-    const outputFileName = path.join(workingDirectory, `${parsedFile.name}${this.EXTRACTED_AUDIO_SUFFIX}.${extension}`);
-    await new Promise<void>((resolve) => {
+    const outputFileName = path.join(workingDirectory, `${parsedFile.name}${this.EXTRACTED_AUDIO_SUFFIX}.wav`);
+    await new Promise<void>((resolve, reject) => {
       const command = ffmpeg();
+      command.input(file);
+      if (isMultiStream) {
+        command.complexFilter(
+          [
+            {
+              filter: "amix",
+              options: { inputs: audioStream.length, duration: "longest" },
+              inputs: audioStream.map((_, index) => `0:a:${index}`),
+              outputs: "mixedAudio",
+            },
+          ],
+          "mixedAudio",
+        );
+      }
       command
-        .input(file)
         .output(outputFileName)
         .noVideo()
-        .audioCodec(isMultiStream ? "aac" : "copy")
+        .audioCodec("pcm_s16le")
+        .audioChannels(1)
+        .audioFrequency(16_000)
         .on("end", resolve)
-        .on("error", (err) => {
-          logger.error(err);
-          resolve();
-        })
+        .on("error", reject)
         .run();
     });
     if (this.opts.verbose) {
@@ -120,7 +138,7 @@ export class Diarization {
 
     let inputFile = file;
     const parsedFile = path.parse(inputFile);
-    const workingDirectory = path.join(parsedFile.dir, `${parsedFile.name}-diarization`);
+    const workingDirectory = path.join(parsedFile.dir, `${parsedFile.base}-diarization`);
     await fsp.mkdir(workingDirectory, { recursive: true });
 
     if (mimeType.startsWith("video")) {
@@ -137,7 +155,16 @@ export class Diarization {
       return;
     }
 
-    const destinationFilename = `${parsedFile.name}-${this.opts.client}.json`;
+    const sourceHash = await new Promise<string>((resolve, reject) => {
+      const hash = createHash("sha256");
+      fs.createReadStream(file)
+        .on("data", (chunk) => hash.update(chunk))
+        .on("error", reject)
+        .on("end", () => resolve(hash.digest("hex")));
+    });
+    const destinationFilename = `${parsedFile.name}-${this.opts.client}-${
+      this.opts.language || "en-US"
+    }-${sourceHash}.json`;
     const outputFile = path.join(workingDirectory, destinationFilename);
     // dont reprocess if file exists
     const verbose = this.opts.verbose;
@@ -148,7 +175,7 @@ export class Diarization {
       const contents = await fsp.readFile(outputFile, { encoding: "utf-8" });
       const output = JSON.parse(contents);
       await this.splitAudioBySpeakers(inputFile, workingDirectory, output);
-      return;
+      return workingDirectory;
     }
 
     try {
